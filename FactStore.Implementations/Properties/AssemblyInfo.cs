@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("JIT.FactStore")]
+[assembly: AssemblyTitle("FactStore.Implementations")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("JIT.FactStore")]
+[assembly: AssemblyProduct("FactStore.Implementations")]
 [assembly: AssemblyCopyright("Copyright ©  2013")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("303181cb-8967-415b-ac01-c896d5358390")]
+[assembly: Guid("421df54e-1aae-49e2-b0ef-52055c4fd3d0")]
 
 // Version information for an assembly consists of the following four values:
 //

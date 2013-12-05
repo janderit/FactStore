@@ -7,7 +7,7 @@ open System.IO
 
 
 
-let project = "JIT.FactStore"
+let project = "FactStore"
 let project_description = "Fact/Event store library"
 let project_summary = "JIT Fact Store is an event store"
 let project_tags = ""
