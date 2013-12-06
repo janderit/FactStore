@@ -49,7 +49,6 @@
     <Compile Include="NoResultAvailableException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="EventStoreTransaction.cs" />
-    <Compile Include="Transaction.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

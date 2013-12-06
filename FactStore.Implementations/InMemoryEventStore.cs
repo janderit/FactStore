@@ -40,7 +40,7 @@ namespace JIT.FactStore
         {
             foreach (var eventSet in sets)
             {
-                Commit(eventSet, _last_transaction);
+                Commit(eventSet.Envelopes, _last_transaction);
             }
         }
 
@@ -93,19 +93,19 @@ namespace JIT.FactStore
             return _store.Values.SelectMany(es => es.Envelopes.Where(env => env.Header.Stream == stream)).OrderBy(_ => _.Header.StreamVersion).Select(_ => _.Header.StreamVersion).LastOrDefault();
         }
 
-        private Func<EventSet, int?> StartCommit()
+        private Func<IEnumerable<EventEnvelope>, int?> StartCommit()
         {
             var last = _last_transaction;
-            return eventset => Commit(eventset, last);
+            return events => Commit(events, last);
         }
 
         private SpinLock _lock = new SpinLock(enableThreadOwnerTracking:true);
 
-        private int? Commit(EventSet eventSet, int transation_token)
+        private int? Commit(IEnumerable<EventEnvelope> events, int transation_token)
         {
             var lock_taken = false;
 
-            var commit_id = -1;
+            int commit_id;
             try
             {
                 if (!_lock.IsHeldByCurrentThread) _lock.Enter(ref lock_taken);
@@ -113,14 +113,12 @@ namespace JIT.FactStore
                 if (_last_transaction != transation_token) return null;
                 commit_id = _last_transaction + 1;
                 _last_transaction = commit_id;
-                _store.Add(commit_id, eventSet);
+                _store.Add(commit_id, new EventSet(events, commit_id));
             }
             finally
             {
                 if (lock_taken) _lock.Exit(true);
             }
-
-            if (commit_id == -1) return null;
 
             _notifierTarget(commit_id);
             NotifyCommitHook(commit_id);

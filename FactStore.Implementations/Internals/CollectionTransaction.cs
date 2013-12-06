@@ -11,11 +11,11 @@ namespace JIT.FactStore.Internals
         private readonly Guid _transactionId;
         private readonly Func<Guid, int> _findStreamVersion;
         private readonly Func<DateTime> _clockProvider;
-        private readonly Func<Func<EventSet, int?>> _beginCommit;
+        private readonly Func<Func<IEnumerable<EventEnvelope>, int?>> _beginCommit;
 
         private readonly List<Tuple<object, string, Guid, int?, DateTime>> _submissions = new List<Tuple<object, string, Guid, int?, DateTime>>();
 
-        internal CollectionTransaction(Guid transaction_id, Func<Guid, int> findStreamVersion, Func<DateTime> clock_provider, Func<Func<EventSet, int?>> begin_commit)
+        internal CollectionTransaction(Guid transaction_id, Func<Guid, int> findStreamVersion, Func<DateTime> clock_provider, Func<Func<IEnumerable<EventEnvelope>, int?>> begin_commit)
         {
             _transactionId = transaction_id;
             _findStreamVersion = findStreamVersion;        
@@ -38,7 +38,7 @@ namespace JIT.FactStore.Internals
                     try
                     {
                         var commit = _beginCommit();
-                        var eventSet = new EventSet(_submissions.Select(Wrap));
+                        var eventSet = _submissions.Select(Wrap);
                         commit_id = commit(eventSet);
                     }
                     catch (Exception ex)
