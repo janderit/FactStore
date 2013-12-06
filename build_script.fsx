@@ -37,7 +37,7 @@ let readDependencies project =
 
 // Targets
 Target "Clean" (fun _ ->
-    CleanDirs [buildDir]
+    CleanDirs [buildDir;packagingDir;deployDir]
 )
 
 Target "BuildDebug" (fun _ ->
@@ -66,9 +66,13 @@ Target "PackageNuGet" (fun _ ->
     CreateDir packagingDir
     CreateDir deployDir
 
+    let pdbfiles = nuget_projects |> Seq.map (fun file -> (buildDir@@file+".pdb"))
+    let dllfiles = nuget_projects |> Seq.map (fun file -> (buildDir@@file+".dll"))
+    let sourcefiles = Seq.concat [dllfiles;pdbfiles]
+
     let tf = packagingDir @@ "lib" @@ target_framework
     CreateDir tf
-    CopyFiles tf [buildDir @@ project+".dll"]
+    CopyFiles tf sourcefiles
 
     let deps = readDependencies project
 
