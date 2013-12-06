@@ -11,6 +11,7 @@ let project = "FactStore"
 let project_description = "Fact/Event store library"
 let project_summary = "JIT Fact Store is an event store"
 let project_tags = ""
+let target_framework = "net40"
 
 let product_version = "0.0"
 let copyright = "Copyright Jander IT 2013"

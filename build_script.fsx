@@ -66,9 +66,9 @@ Target "PackageNuGet" (fun _ ->
     CreateDir packagingDir
     CreateDir deployDir
 
-    let net45 = packagingDir @@ "lib" @@ "net45"
-    CreateDir net45
-    CopyFiles net45 [buildDir @@ project+".dll"]
+    let tf = packagingDir @@ "lib" @@ target_framework
+    CreateDir tf
+    CopyFiles tf [buildDir @@ project+".dll"]
 
     let deps = readDependencies project
 
