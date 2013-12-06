@@ -8,5 +8,6 @@ namespace JIT.FactStore
         Int32 LastTransaction { get; }
         AsyncTask<IEnumerable<EventSet>> Commits(int startwith, int upto);
         EventStoreTransaction StartTransaction();
+        event Action<int> CommitHook;
     }
 }

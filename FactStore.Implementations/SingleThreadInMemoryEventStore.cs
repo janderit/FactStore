@@ -37,6 +37,14 @@ namespace JIT.FactStore
             Preload(preload ?? new List<EventSet>());
         }
 
+        public event Action<int> CommitHook;
+
+        private void NotifyCommitHook(int commit)
+        {
+            var handler = CommitHook;
+            if (handler != null) handler(commit);
+        }
+
         private void Preload(IEnumerable<EventSet> sets)
         {
             foreach (var eventSet in sets)
@@ -101,6 +109,7 @@ namespace JIT.FactStore
             _last_transaction = commit_id;
             _store.Add(commit_id, eventSet);
             _notifierTarget(commit_id);
+            NotifyCommitHook(commit_id);
             return commit_id;
         }
     }

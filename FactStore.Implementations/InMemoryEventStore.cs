@@ -80,6 +80,14 @@ namespace JIT.FactStore
             return new CollectionTransaction(Guid.NewGuid(), FindStreamVersion, () => DateTime.UtcNow, StartCommit);
         }
 
+        public event Action<int> CommitHook;
+
+        private void NotifyCommitHook(int commit)
+        {
+            var handler = CommitHook;
+            if (handler != null) handler(commit);
+        }
+
         private int FindStreamVersion(Guid stream)
         {
             return _store.Values.SelectMany(es => es.Envelopes.Where(env => env.Header.Stream == stream)).OrderBy(_ => _.Header.StreamVersion).Select(_ => _.Header.StreamVersion).LastOrDefault();
@@ -115,6 +123,7 @@ namespace JIT.FactStore
             if (commit_id == -1) return null;
 
             _notifierTarget(commit_id);
+            NotifyCommitHook(commit_id);
             return commit_id;
         }
     }

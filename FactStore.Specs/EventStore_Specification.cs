@@ -55,6 +55,51 @@ namespace FactStore.Specs
         }
 
         [Test]
+        public void Storing_an_event_fires_commit_hook()
+        {
+            var subject = SubjectFactory();
+
+            int? received = null;
+            Action<int> subscriber = commit => received = commit;
+
+            subject.CommitHook += subscriber;
+
+            var old_last_id = subject.LastTransaction;
+
+            var transaction = subject.StartTransaction();
+            transaction.Store(new object(), "", Guid.NewGuid());
+
+            transaction.Commit().Await();
+
+            subject.LastTransaction.Should().BeGreaterThan(old_last_id);
+            received.Should().HaveValue();
+            received.Value.Should().Be(subject.LastTransaction);
+        }
+
+        [Test]
+        public void Commit_hook_can_be_unsubscribed_from()
+        {
+            
+            var subject = SubjectFactory();
+
+            int? received = null;
+            Action<int> subscriber = commit => received = commit;
+            subject.CommitHook += subscriber;
+
+            var old_last_id = subject.LastTransaction;
+
+            var transaction = subject.StartTransaction();
+            transaction.Store(new object(), "", Guid.NewGuid());
+
+            subject.CommitHook -= subscriber;
+            transaction.Commit().Await();
+
+            subject.LastTransaction.Should().BeGreaterThan(old_last_id);
+            received.Should().NotHaveValue();
+        }
+
+
+        [Test]
         public void Stored_events_can_be_retrieved()
         {
             var subject = SubjectFactory();
