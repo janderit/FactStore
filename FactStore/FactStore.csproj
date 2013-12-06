@@ -39,12 +39,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AsyncResult.cs" />
     <Compile Include="EventEnvelope.cs" />
     <Compile Include="EventHeader.cs" />
     <Compile Include="EventSet.cs" />
     <Compile Include="EventStore.cs" />
     <Compile Include="EventStoreException.cs" />
+    <Compile Include="NoResultAvailableException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="EventStoreTransaction.cs" />
     <Compile Include="Transaction.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

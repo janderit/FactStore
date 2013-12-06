@@ -2,9 +2,9 @@
 
 namespace JIT.FactStore
 {
-    public interface Transaction
+    public struct Transaction
     {
-        void Store(object @event, string discriminator, Guid stream);
-        void Commit(Action<int> on_stored, Action<Exception> on_error);
+        public readonly int Series_Id;
+        public readonly Guid Id;
     }
 }

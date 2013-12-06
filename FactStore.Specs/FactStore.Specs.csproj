@@ -49,11 +49,17 @@
     <Compile Include="EventStore_Specification.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestEvent.cs" />
+    <Compile Include="WrappedException.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="InMemoryEventStore.Test.cs" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FactStore.Implementations\FactStore.Implementations.csproj">
+      <Project>{E7E6EDFC-73C6-43C4-A69A-EF9D67DE8240}</Project>
+      <Name>FactStore.Implementations</Name>
+    </ProjectReference>
     <ProjectReference Include="..\FactStore\FactStore.csproj">
       <Project>{A55F384F-6396-46BD-9AF5-AE474AEE0256}</Project>
       <Name>FactStore</Name>
