@@ -41,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="SingleThreadInMemoryEventStore.cs" />
+    <Compile Include="InMemoryEventStore.cs" />
     <Compile Include="Internals\CollectionTransaction.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

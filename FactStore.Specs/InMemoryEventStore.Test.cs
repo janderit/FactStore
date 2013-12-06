@@ -5,10 +5,20 @@ using NUnit.Framework;
 namespace FactStore.Specs
 { 
 	[TestFixture]
-    public class InMemoryEventStoreTest : EventStore_Specification {
+    public class SingleThreadInMemoryEventStoreTest : EventStore_Specification
+    {
 	    protected override EventStore SubjectFactory()
 	    {
 	        return new SingleThreadInMemoryEventStore();
 	    }
+    }
+
+    [TestFixture]
+    public class InMemoryEventStoreTest : EventStore_Specification
+    {
+        protected override EventStore SubjectFactory()
+        {
+            return new InMemoryEventStore();
+        }
     }
 }

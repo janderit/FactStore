@@ -6,32 +6,31 @@ using JIT.FactStore.Internals;
 
 namespace JIT.FactStore
 {
-    public sealed class SingleThreadInMemoryEventStore : EventStore
+    public sealed class InMemoryEventStore : EventStore
     {
         private readonly Action<int> _notifierTarget;
         private const int InvalidTransaction = -1;
-        private int? ThreadId;
 
         private readonly Dictionary<int, EventSet> _store = new Dictionary<int, EventSet>();
         private int _last_transaction = InvalidTransaction;
 
 
-        public SingleThreadInMemoryEventStore()
+        public InMemoryEventStore()
             : this(null, null)
         {
         }
 
-        public SingleThreadInMemoryEventStore(Action<int> notifier_target)
+        public InMemoryEventStore(Action<int> notifier_target)
             : this(null, notifier_target)
         {
         }
 
-        public SingleThreadInMemoryEventStore(IEnumerable<EventSet> preload)
+        public InMemoryEventStore(IEnumerable<EventSet> preload)
             : this(preload, null)
         {
         }
 
-        public SingleThreadInMemoryEventStore(IEnumerable<EventSet> preload, Action<int> notifier_target)
+        public InMemoryEventStore(IEnumerable<EventSet> preload, Action<int> notifier_target)
         {
             _notifierTarget = notifier_target ?? (_ => { });
             Preload(preload ?? new List<EventSet>());
@@ -78,8 +77,6 @@ namespace JIT.FactStore
 
         public EventStoreTransaction StartTransaction()
         {
-            if (ThreadId == null) ThreadId = Thread.CurrentThread.ManagedThreadId;
-            if (ThreadId.Value != Thread.CurrentThread.ManagedThreadId) throw new Exception("SingleThreadInMemoryEventStore must be used from a single thread.");
             return new CollectionTransaction(Guid.NewGuid(), FindStreamVersion, () => DateTime.UtcNow, StartCommit);
         }
 
@@ -94,12 +91,29 @@ namespace JIT.FactStore
             return eventset => Commit(eventset, last);
         }
 
+        private SpinLock _lock = new SpinLock(enableThreadOwnerTracking:true);
+
         private int? Commit(EventSet eventSet, int transation_token)
         {
-            if (_last_transaction != transation_token) return null;
-            var commit_id = _last_transaction + 1;
-            _last_transaction = commit_id;
-            _store.Add(commit_id, eventSet);
+            var lock_taken = false;
+
+            var commit_id = -1;
+            try
+            {
+                if (!_lock.IsHeldByCurrentThread) _lock.Enter(ref lock_taken);
+
+                if (_last_transaction != transation_token) return null;
+                commit_id = _last_transaction + 1;
+                _last_transaction = commit_id;
+                _store.Add(commit_id, eventSet);
+            }
+            finally
+            {
+                if (lock_taken) _lock.Exit(true);
+            }
+
+            if (commit_id == -1) return null;
+
             _notifierTarget(commit_id);
             return commit_id;
         }
