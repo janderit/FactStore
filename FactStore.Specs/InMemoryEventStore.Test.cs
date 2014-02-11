@@ -9,7 +9,7 @@ namespace FactStore.Specs
     {
 	    protected override EventStore SubjectFactory()
 	    {
-	        return new SingleThreadInMemoryEventStore();
+	        return new SinglethreadEventStore(new InMemoryEventStorage());
 	    }
     }
 
@@ -18,7 +18,7 @@ namespace FactStore.Specs
     {
         protected override EventStore SubjectFactory()
         {
-            return new InMemoryEventStore();
+            return new ConcurrentEventStore(new InMemoryEventStorage());
         }
     }
 }

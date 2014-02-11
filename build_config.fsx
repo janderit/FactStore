@@ -14,8 +14,8 @@ let project_tags = ""
 let target_framework = "net40"
 let nuget_projects = ["FactStore"; "FactStore.Implementations"]
 
-let product_version = "0.0"
-let copyright = "Copyright Jander IT 2013"
+let product_version = "0.1"
+let copyright = "Copyright Jander IT 2014"
 let authors = ["Jander IT"]
 
 let buildnumber = match buildServer with 

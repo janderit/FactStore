@@ -40,8 +40,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SingleThreadInMemoryEventStore.cs" />
-    <Compile Include="InMemoryEventStore.cs" />
+    <Compile Include="EventStorage.cs" />
+    <Compile Include="InMemoryEventStorage.cs" />
+    <Compile Include="SinglethreadEventStore.cs" />
+    <Compile Include="ConcurrentEventStore.cs" />
     <Compile Include="Internals\CollectionTransaction.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
