@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace JIT.FactStore
 {
@@ -19,6 +20,11 @@ namespace JIT.FactStore
         public IEnumerable<EventSet> All
         {
             get { return _store.Values; }
+        }
+
+        public int? LastTransactionId
+        {
+            get { return _store.Count == 0 ? default(int?) : _store.Keys.Max(); }
         }
     }
 }

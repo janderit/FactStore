@@ -33,8 +33,25 @@ namespace JIT.FactStore
         public ConcurrentEventStore(EventStorage storage, IEnumerable<EventSet> preload, Action<int> notifier_target)
         {
             _storage = storage;
+            Refresh();
             _notifierTarget = notifier_target ?? (_ => { });
             Preload(preload ?? new List<EventSet>());
+        }
+
+        public void Refresh()
+        {
+            var lock_taken = false;
+            try
+            {
+                if (!_lock.IsHeldByCurrentThread) _lock.Enter(ref lock_taken);
+
+                var last = _storage.LastTransactionId;
+                _last_transaction = last ?? InvalidTransaction;
+            }
+            finally
+            {
+                if (lock_taken) _lock.Exit(true);
+            }
         }
 
         private void Preload(IEnumerable<EventSet> sets)

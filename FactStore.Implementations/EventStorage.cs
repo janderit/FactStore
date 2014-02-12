@@ -7,5 +7,7 @@ namespace JIT.FactStore
         void Add(int commit, EventSet eventSet);
         EventSet Get(int commit);
         IEnumerable<EventSet> All { get; }
+
+        int? LastTransactionId { get; }
     }
 }

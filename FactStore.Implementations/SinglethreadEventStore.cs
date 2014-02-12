@@ -34,11 +34,18 @@ namespace JIT.FactStore
         public SinglethreadEventStore(EventStorage storage, IEnumerable<EventSet> preload, Action<int> notifier_target)
         {
             _storage = storage;
+            Refresh();
             _notifierTarget = notifier_target ?? (_ => { });
             Preload(preload ?? new List<EventSet>());
         }
 
         public event Action<int> CommitHook;
+        
+        public void Refresh()
+        {
+            var last = _storage.LastTransactionId;
+            _last_transaction = last ?? InvalidTransaction;
+        }
 
         private void NotifyCommitHook(int commit)
         {
