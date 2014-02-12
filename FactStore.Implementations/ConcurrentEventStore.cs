@@ -11,7 +11,7 @@ namespace JIT.FactStore
         private readonly Action<int> _notifierTarget;
         private const int InvalidTransaction = -1;
 
-        private readonly EventStorage _storage;
+        private EventStorage _storage;
         private int _last_transaction = InvalidTransaction;
 
 
@@ -38,7 +38,7 @@ namespace JIT.FactStore
             Preload(preload ?? new List<EventSet>());
         }
 
-        public void Refresh()
+        private void Refresh()
         {
             var lock_taken = false;
             try
@@ -47,6 +47,24 @@ namespace JIT.FactStore
 
                 var last = _storage.LastTransactionId;
                 _last_transaction = last ?? InvalidTransaction;
+            }
+            finally
+            {
+                if (lock_taken) _lock.Exit(true);
+            }
+        }
+
+        public EventStorage SwitchStorage(EventStorage new_storage)
+        {
+            var lock_taken = false;
+            try
+            {
+                if (!_lock.IsHeldByCurrentThread) _lock.Enter(ref lock_taken);
+
+                var old = _storage;
+                _storage = new_storage;
+                Refresh();
+                return old;
             }
             finally
             {

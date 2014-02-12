@@ -40,8 +40,8 @@ namespace JIT.FactStore
         }
 
         public event Action<int> CommitHook;
-        
-        public void Refresh()
+
+        private void Refresh()
         {
             var last = _storage.LastTransactionId;
             _last_transaction = last ?? InvalidTransaction;

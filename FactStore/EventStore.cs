@@ -9,7 +9,5 @@ namespace JIT.FactStore
         AsyncTask<IEnumerable<EventSet>> Commits(int startwith, int upto);
         EventStoreTransaction StartTransaction();
         event Action<int> CommitHook;
-
-        void Refresh();
     }
 }
