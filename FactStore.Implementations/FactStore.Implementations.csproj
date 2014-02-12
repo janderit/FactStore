@@ -42,6 +42,7 @@
   <ItemGroup>
     <Compile Include="EventStorage.cs" />
     <Compile Include="InMemoryEventStorage.cs" />
+    <Compile Include="NullEventStorage.cs" />
     <Compile Include="SinglethreadEventStore.cs" />
     <Compile Include="ConcurrentEventStore.cs" />
     <Compile Include="Internals\CollectionTransaction.cs" />
