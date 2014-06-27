@@ -10,10 +10,11 @@ namespace JIT.FactStore
     {
         private readonly Action<int> _notifierTarget;
         private const int InvalidTransaction = -1;
-        private int? ThreadId;
+        private int? _threadId;
 
         private readonly EventStorage _storage;
-        private int _last_transaction = InvalidTransaction;
+        private readonly Func<object, string> _discriminatorFactory;
+        private int _lastTransaction = InvalidTransaction;
 
 
         public SinglethreadEventStore(EventStorage storage)
@@ -32,8 +33,14 @@ namespace JIT.FactStore
         }
 
         public SinglethreadEventStore(EventStorage storage, IEnumerable<EventSet> preload, Action<int> notifier_target)
+            : this(storage, preload, notifier_target, null)
+        {
+        }
+
+        public SinglethreadEventStore(EventStorage storage, IEnumerable<EventSet> preload, Action<int> notifier_target, Func<object, string> discriminator_factory)
         {
             _storage = storage;
+            _discriminatorFactory = discriminator_factory;
             Refresh();
             _notifierTarget = notifier_target ?? (_ => { });
             Preload(preload ?? new List<EventSet>());
@@ -44,7 +51,7 @@ namespace JIT.FactStore
         private void Refresh()
         {
             var last = _storage.LastTransactionId;
-            _last_transaction = last ?? InvalidTransaction;
+            _lastTransaction = last ?? InvalidTransaction;
         }
 
         private void NotifyCommitHook(int commit)
@@ -57,14 +64,14 @@ namespace JIT.FactStore
         {
             foreach (var eventSet in sets)
             {
-                Commit(eventSet.Envelopes, _last_transaction);
+                Commit(eventSet.Envelopes, _lastTransaction);
             }
         }
 
 
         public int LastTransaction
         {
-            get { return _last_transaction; }
+            get { return _lastTransaction; }
         }
 
         public AsyncTask<IEnumerable<EventSet>> Commits(int startwith, int upto)
@@ -85,7 +92,7 @@ namespace JIT.FactStore
         private IEnumerable<EventSet> Retrieve(int startwith, int upto)
         {
             var start = Math.Max(startwith, 0);
-            var stop = Math.Min(upto, _last_transaction);
+            var stop = Math.Min(upto, _lastTransaction);
             for (var i = start; i <= stop; i++)
             {
                 yield return _storage.Get(i);
@@ -94,9 +101,9 @@ namespace JIT.FactStore
 
         public EventStoreTransaction StartTransaction()
         {
-            if (ThreadId == null) ThreadId = Thread.CurrentThread.ManagedThreadId;
-            if (ThreadId.Value != Thread.CurrentThread.ManagedThreadId) throw new Exception("SinglethreadEventStore must be used from a single thread.");
-            return new CollectionTransaction(Guid.NewGuid(), FindStreamVersion, () => DateTime.UtcNow, StartCommit);
+            if (_threadId == null) _threadId = Thread.CurrentThread.ManagedThreadId;
+            if (_threadId.Value != Thread.CurrentThread.ManagedThreadId) throw new Exception("SinglethreadEventStore must be used from a single thread.");
+            return new CollectionTransaction(Guid.NewGuid(), FindStreamVersion, () => DateTime.UtcNow, StartCommit, _discriminatorFactory);
         }
 
         private int FindStreamVersion(Guid stream)
@@ -106,15 +113,15 @@ namespace JIT.FactStore
 
         private Func<IEnumerable<EventEnvelope>, int?> StartCommit()
         {
-            var last = _last_transaction;
+            var last = _lastTransaction;
             return events => Commit(events, last);
         }
 
         private int? Commit(IEnumerable<EventEnvelope> events, int transation_token)
         {
-            if (_last_transaction != transation_token) return null;
-            var commit_id = _last_transaction + 1;
-            _last_transaction = commit_id;
+            if (_lastTransaction != transation_token) return null;
+            var commit_id = _lastTransaction + 1;
+            _lastTransaction = commit_id;
             _storage.Add(commit_id, new EventSet(events, commit_id));
             _notifierTarget(commit_id);
             NotifyCommitHook(commit_id);

@@ -12,7 +12,7 @@ namespace JIT.FactStore
         private const int InvalidTransaction = -1;
 
         private EventStorage _storage;
-        private int _last_transaction = InvalidTransaction;
+        private int _lastTransaction = InvalidTransaction;
 
 
         public ConcurrentEventStore(EventStorage storage)
@@ -31,8 +31,14 @@ namespace JIT.FactStore
         }
 
         public ConcurrentEventStore(EventStorage storage, IEnumerable<EventSet> preload, Action<int> notifier_target)
+            : this(storage, preload, notifier_target, null)
+        {
+        }
+
+        public ConcurrentEventStore(EventStorage storage, IEnumerable<EventSet> preload, Action<int> notifier_target, Func<object, string> discriminator_factory)
         {
             _storage = storage;
+            _discriminatorFactory = discriminator_factory;
             Refresh();
             _notifierTarget = notifier_target ?? (_ => { });
             Preload(preload ?? new List<EventSet>());
@@ -46,7 +52,7 @@ namespace JIT.FactStore
                 if (!_lock.IsHeldByCurrentThread) _lock.Enter(ref lock_taken);
 
                 var last = _storage.LastTransactionId;
-                _last_transaction = last ?? InvalidTransaction;
+                _lastTransaction = last ?? InvalidTransaction;
             }
             finally
             {
@@ -76,14 +82,14 @@ namespace JIT.FactStore
         {
             foreach (var eventSet in sets)
             {
-                Commit(eventSet.Envelopes, _last_transaction);
+                Commit(eventSet.Envelopes, _lastTransaction);
             }
         }
 
 
         public int LastTransaction
         {
-            get { return _last_transaction; }
+            get { return _lastTransaction; }
         }
 
         public AsyncTask<IEnumerable<EventSet>> Commits(int startwith, int upto)
@@ -104,7 +110,7 @@ namespace JIT.FactStore
         private IEnumerable<EventSet> Retrieve(int startwith, int upto)
         {
             var start = Math.Max(startwith, 0);
-            var stop = Math.Min(upto, _last_transaction);
+            var stop = Math.Min(upto, _lastTransaction);
             for (var i = start; i <= stop; i++)
             {
                 yield return _storage.Get(i);
@@ -113,7 +119,7 @@ namespace JIT.FactStore
 
         public EventStoreTransaction StartTransaction()
         {
-            return new CollectionTransaction(Guid.NewGuid(), FindStreamVersion, () => DateTime.UtcNow, StartCommit);
+            return new CollectionTransaction(Guid.NewGuid(), FindStreamVersion, () => DateTime.UtcNow, StartCommit, _discriminatorFactory);
         }
 
         public event Action<int> CommitHook;
@@ -131,11 +137,12 @@ namespace JIT.FactStore
 
         private Func<IEnumerable<EventEnvelope>, int?> StartCommit()
         {
-            var last = _last_transaction;
+            var last = _lastTransaction;
             return events => Commit(events, last);
         }
 
         private SpinLock _lock = new SpinLock(enableThreadOwnerTracking:true);
+        private readonly Func<object, string> _discriminatorFactory;
 
         private int? Commit(IEnumerable<EventEnvelope> events, int transation_token)
         {
@@ -146,9 +153,9 @@ namespace JIT.FactStore
             {
                 if (!_lock.IsHeldByCurrentThread) _lock.Enter(ref lock_taken);
 
-                if (_last_transaction != transation_token) return null;
-                commit_id = _last_transaction + 1;
-                _last_transaction = commit_id;
+                if (_lastTransaction != transation_token) return null;
+                commit_id = _lastTransaction + 1;
+                _lastTransaction = commit_id;
                 _storage.Add(commit_id, new EventSet(events, commit_id));
             }
             finally

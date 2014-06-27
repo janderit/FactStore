@@ -12,19 +12,22 @@ namespace JIT.FactStore.Internals
         private readonly Func<Guid, int> _findStreamVersion;
         private readonly Func<DateTime> _clockProvider;
         private readonly Func<Func<IEnumerable<EventEnvelope>, int?>> _beginCommit;
+        private readonly Func<object, string> _discriminatorFactory;
 
         private readonly List<Tuple<object, string, Guid, int?, DateTime>> _submissions = new List<Tuple<object, string, Guid, int?, DateTime>>();
 
-        internal CollectionTransaction(Guid transaction_id, Func<Guid, int> findStreamVersion, Func<DateTime> clock_provider, Func<Func<IEnumerable<EventEnvelope>, int?>> begin_commit)
+        internal CollectionTransaction(Guid transaction_id, Func<Guid, int> findStreamVersion, Func<DateTime> clock_provider, Func<Func<IEnumerable<EventEnvelope>, int?>> begin_commit, Func<object, string> discriminatorFactory)
         {
             _transactionId = transaction_id;
             _findStreamVersion = findStreamVersion;        
             _clockProvider = clock_provider;
             _beginCommit = begin_commit;
+            _discriminatorFactory = discriminatorFactory;
         }
 
         public void Store(object @event, string discriminator, Guid stream, int? version)
         {
+            if (discriminator == null && _discriminatorFactory != null) discriminator = _discriminatorFactory(@event);
             _submissions.Add(new Tuple<object, string, Guid, int?, DateTime>(@event, discriminator, stream, version, _clockProvider()));
         }
 
