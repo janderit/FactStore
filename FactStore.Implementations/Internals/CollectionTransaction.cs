@@ -31,7 +31,7 @@ namespace JIT.FactStore.Internals
             _submissions.Add(new Tuple<object, string, Guid, int?, DateTime>(@event, discriminator, stream, version, _clockProvider()));
         }
 
-        private Dictionary<Guid, int> _locally_increased_Versions = new Dictionary<Guid, int>();
+        private readonly Dictionary<Guid, int> _locally_increased_Versions = new Dictionary<Guid, int>();
 
         public AsyncTask<int> Commit()
         {

@@ -15,7 +15,7 @@ namespace JIT.FactStore
         private readonly EventStorage _storage;
         private readonly Func<object, string> _discriminatorFactory;
         private int _lastTransaction = InvalidTransaction;
-
+        private readonly Dictionary<Guid, int> _streamversions;
 
         public SinglethreadEventStore(EventStorage storage)
             : this(storage, null, null)
@@ -43,6 +43,13 @@ namespace JIT.FactStore
             _discriminatorFactory = discriminator_factory;
             Refresh();
             _notifierTarget = notifier_target ?? (_ => { });
+
+            _streamversions = 
+                storage.All.SelectMany(_ => _.Envelopes)
+                    .GroupBy(_ => _.Header.Stream)
+                    .Select(_ => new {Stream = _.Key, Version = _.Max(a => a.Header.StreamVersion)})
+                    .ToDictionary(_ => _.Stream, _ => _.Version);
+
             Preload(preload ?? new List<EventSet>());
         }
 
@@ -103,12 +110,12 @@ namespace JIT.FactStore
         {
             if (_threadId == null) _threadId = Thread.CurrentThread.ManagedThreadId;
             if (_threadId.Value != Thread.CurrentThread.ManagedThreadId) throw new Exception("SinglethreadEventStore must be used from a single thread.");
-            return new CollectionTransaction(Guid.NewGuid(), FindStreamVersion, () => DateTime.UtcNow, StartCommit, _discriminatorFactory);
+            return new CollectionTransaction(Guid.NewGuid(), FindNextStreamVersion, () => DateTime.UtcNow, StartCommit, _discriminatorFactory);
         }
 
-        private int FindStreamVersion(Guid stream)
+        private int FindNextStreamVersion(Guid stream)
         {
-            return _storage.All.SelectMany(es => es.Envelopes.Where(env => env.Header.Stream == stream)).OrderBy(_ => _.Header.StreamVersion).Select(_ => _.Header.StreamVersion).LastOrDefault();
+            return _streamversions.ContainsKey(stream) ? _streamversions[stream] + 1 : 0;
         }
 
         private Func<IEnumerable<EventEnvelope>, int?> StartCommit()
@@ -122,6 +129,12 @@ namespace JIT.FactStore
             if (_lastTransaction != transation_token) return null;
             var commit_id = _lastTransaction + 1;
             _lastTransaction = commit_id;
+            foreach (var @event in events)
+            {
+                if (_streamversions.ContainsKey(@event.Header.Stream))
+                    _streamversions[@event.Header.Stream] = @event.Header.StreamVersion;
+                else _streamversions.Add(@event.Header.Stream, @event.Header.StreamVersion);
+            }
             _storage.Add(commit_id, new EventSet(events, commit_id));
             _notifierTarget(commit_id);
             NotifyCommitHook(commit_id);
