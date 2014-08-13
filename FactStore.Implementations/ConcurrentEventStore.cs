@@ -119,7 +119,7 @@ namespace JIT.FactStore
 
         public EventStoreTransaction StartTransaction()
         {
-            return new CollectionTransaction(Guid.NewGuid(), FindStreamVersion, () => DateTime.UtcNow, StartCommit, _discriminatorFactory);
+            return new CollectionTransaction(Guid.NewGuid(), FindNextStreamVersion, () => DateTime.UtcNow, StartCommit, _discriminatorFactory);
         }
 
         public event Action<int> CommitHook;
@@ -130,9 +130,13 @@ namespace JIT.FactStore
             if (handler != null) handler(commit);
         }
 
-        private int FindStreamVersion(Guid stream)
+        private int FindNextStreamVersion(Guid stream)
         {
-            return _storage.All.SelectMany(es => es.Envelopes.Where(env => env.Header.Stream == stream)).OrderBy(_ => _.Header.StreamVersion).Select(_ => _.Header.StreamVersion).LastOrDefault();
+            return
+                _storage.All.SelectMany(es => es.Envelopes.Where(env => env.Header.Stream == stream))
+                    .OrderBy(_ => _.Header.StreamVersion)
+                    .Select(_ => _.Header.StreamVersion)
+                    .DefaultIfEmpty(-1).LastOrDefault() + 1;
         }
 
         private Func<IEnumerable<EventEnvelope>, int?> StartCommit()

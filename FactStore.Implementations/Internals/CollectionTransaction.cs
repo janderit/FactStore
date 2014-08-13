@@ -9,17 +9,17 @@ namespace JIT.FactStore.Internals
         private const int MaxRetries = 3;
 
         private readonly Guid _transactionId;
-        private readonly Func<Guid, int> _findStreamVersion;
+        private readonly Func<Guid, int> _findNextStreamVersion;
         private readonly Func<DateTime> _clockProvider;
         private readonly Func<Func<IEnumerable<EventEnvelope>, int?>> _beginCommit;
         private readonly Func<object, string> _discriminatorFactory;
 
         private readonly List<Tuple<object, string, Guid, int?, DateTime>> _submissions = new List<Tuple<object, string, Guid, int?, DateTime>>();
 
-        internal CollectionTransaction(Guid transaction_id, Func<Guid, int> findStreamVersion, Func<DateTime> clock_provider, Func<Func<IEnumerable<EventEnvelope>, int?>> begin_commit, Func<object, string> discriminatorFactory)
+        internal CollectionTransaction(Guid transaction_id, Func<Guid, int> findNextStreamVersion, Func<DateTime> clock_provider, Func<Func<IEnumerable<EventEnvelope>, int?>> begin_commit, Func<object, string> discriminatorFactory)
         {
             _transactionId = transaction_id;
-            _findStreamVersion = findStreamVersion;        
+            _findNextStreamVersion = findNextStreamVersion;        
             _clockProvider = clock_provider;
             _beginCommit = begin_commit;
             _discriminatorFactory = discriminatorFactory;
@@ -31,6 +31,8 @@ namespace JIT.FactStore.Internals
             _submissions.Add(new Tuple<object, string, Guid, int?, DateTime>(@event, discriminator, stream, version, _clockProvider()));
         }
 
+        private Dictionary<Guid, int> _locally_increased_Versions = new Dictionary<Guid, int>();
+
         public AsyncTask<int> Commit()
         {
             try
@@ -41,7 +43,7 @@ namespace JIT.FactStore.Internals
                     try
                     {
                         var commit = _beginCommit();
-                        var eventSet = _submissions.Select(Wrap);
+                        var eventSet = _submissions.Select(Wrap).ToList();
                         commit_id = commit(eventSet);
                     }
                     catch (Exception ex)
@@ -60,7 +62,22 @@ namespace JIT.FactStore.Internals
 
         private EventEnvelope Wrap(Tuple<object, string, Guid, int?, DateTime> arg)
         {
-            return new EventEnvelope(new EventHeader(_transactionId, arg.Item5, arg.Item2, arg.Item3, arg.Item4 ?? _findStreamVersion(arg.Item3)), arg.Item1);
+            var lastversion = _locally_increased_Versions.ContainsKey(arg.Item3)
+                ? _locally_increased_Versions[arg.Item3] + 1
+                : _findNextStreamVersion(arg.Item3);
+
+            int version;
+            if (arg.Item4.HasValue)
+            {
+                if (arg.Item4.Value < lastversion) throw new Exception("Versionskonflikt im Stream " + arg.Item3);
+                version = arg.Item4.Value;
+            }
+            else
+            {
+                version = lastversion;
+            }
+            if (_locally_increased_Versions.ContainsKey(arg.Item3)) _locally_increased_Versions[arg.Item3] = version; else _locally_increased_Versions.Add(arg.Item3, version);
+            return new EventEnvelope(new EventHeader(_transactionId, arg.Item5, arg.Item2, arg.Item3, version), arg.Item1);
         }
     }
 }

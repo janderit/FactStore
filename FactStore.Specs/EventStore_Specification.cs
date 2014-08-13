@@ -53,6 +53,67 @@ namespace FactStore.Specs
         }
 
         [Test]
+        public void Storing_an_event_with_outdated_version_fails_1()
+        {
+            var subject = SubjectFactory();
+
+            var old_last_id = subject.LastTransaction;
+
+            var transaction = subject.StartTransaction();
+            var stream = Guid.NewGuid();
+            transaction.Store(new object(), "", stream, 0);
+            transaction.Store(new object(), "", stream, 1);
+            transaction.Store(new object(), "", stream, 0);
+            Action action = ()=>transaction.Commit().Await();
+            action.ShouldThrow<Exception>();
+
+            subject.LastTransaction.Should().Be(old_last_id);
+        }
+
+        [Test]
+        public void Storing_an_event_with_outdated_version_fails_2()
+        {
+            var subject = SubjectFactory();
+
+            var transaction = subject.StartTransaction();
+            var stream = Guid.NewGuid();
+            transaction.Store(new object(), "", stream, 0);
+            transaction.Store(new object(), "", stream, 1);
+            transaction.Commit().Await();
+
+            var old_last_id = subject.LastTransaction;
+
+            transaction = subject.StartTransaction();
+            transaction.Store(new object(), "", stream, 0);
+            Action action = () => transaction.Commit().Await();
+            action.ShouldThrow<Exception>();
+
+            subject.LastTransaction.Should().Be(old_last_id);
+        }
+
+        [Test]
+        public void Multiple_default_events_are_assigned_correct_version_numbers()
+        {
+            var subject = SubjectFactory();
+
+            var old_last_id = subject.LastTransaction;
+
+            var transaction = subject.StartTransaction();
+            var stream = Guid.NewGuid();
+            transaction.Store(new object(), "", stream);
+            transaction.Store(new object(), "", stream);
+            transaction.Store(new object(), "", stream);
+            transaction.Commit().Await();
+            subject.LastTransaction.Should().BeGreaterThan(old_last_id);
+            var events = subject.Commits(Int32.MinValue, Int32.MaxValue).Await().SelectMany(_ => _.Envelopes).ToList();
+            events.Count(_ => _.Header.StreamVersion == -1).Should().Be(0);
+            events.Count(_ => _.Header.StreamVersion == 0).Should().Be(1);
+            events.Count(_ => _.Header.StreamVersion == 1).Should().Be(1);
+            events.Count(_ => _.Header.StreamVersion == 2).Should().Be(1);
+            events.Count(_ => _.Header.StreamVersion == 3).Should().Be(0);
+        }
+
+        [Test]
         public void Storing_an_event_fires_commit_hook()
         {
             var subject = SubjectFactory();
@@ -133,3 +194,5 @@ namespace FactStore.Specs
 
     }
 }
+
+
