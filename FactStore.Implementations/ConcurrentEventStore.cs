@@ -41,6 +41,13 @@ namespace JIT.FactStore
             _discriminatorFactory = discriminator_factory;
             Refresh();
             _notifierTarget = notifier_target ?? (_ => { });
+
+            _streamversions =
+                storage.All.SelectMany(_ => _.Envelopes)
+                    .GroupBy(_ => _.Header.Stream)
+                    .Select(_ => new {Stream = _.Key, Version = _.Max(a => a.Header.StreamVersion)})
+                    .ToDictionary(_ => _.Stream, _ => _.Version);
+
             Preload(preload ?? new List<EventSet>());
         }
 
@@ -132,12 +139,8 @@ namespace JIT.FactStore
 
         private int FindNextStreamVersion(Guid stream)
         {
-            return
-                _storage.All.SelectMany(es => es.Envelopes.Where(env => env.Header.Stream == stream))
-                    .OrderBy(_ => _.Header.StreamVersion)
-                    .Select(_ => _.Header.StreamVersion)
-                    .DefaultIfEmpty(-1).LastOrDefault() + 1;
-        }
+            return _streamversions.ContainsKey(stream) ? _streamversions[stream] + 1 : 0;
+        }   
 
         private Func<IEnumerable<EventEnvelope>, int?> StartCommit()
         {
@@ -147,20 +150,27 @@ namespace JIT.FactStore
 
         private SpinLock _lock = new SpinLock(enableThreadOwnerTracking:true);
         private readonly Func<object, string> _discriminatorFactory;
+        private readonly Dictionary<Guid, int> _streamversions;
 
         private int? Commit(IEnumerable<EventEnvelope> events, int transation_token)
         {
             var lock_taken = false;
-
             int commit_id;
             try
             {
                 if (!_lock.IsHeldByCurrentThread) _lock.Enter(ref lock_taken);
 
-                if (_lastTransaction != transation_token) return null;
-                commit_id = _lastTransaction + 1;
-                _lastTransaction = commit_id;
-                _storage.Add(commit_id, new EventSet(events, commit_id));
+            if (_lastTransaction != transation_token) return null;
+            commit_id = _lastTransaction + 1;
+            _lastTransaction = commit_id;
+            foreach (var @event in events)
+            {
+                if (_streamversions.ContainsKey(@event.Header.Stream))
+                    _streamversions[@event.Header.Stream] = @event.Header.StreamVersion;
+                else _streamversions.Add(@event.Header.Stream, @event.Header.StreamVersion);
+            }
+            _storage.Add(commit_id, new EventSet(events, commit_id));
+
             }
             finally
             {
